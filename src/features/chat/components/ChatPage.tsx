@@ -68,11 +68,19 @@ export function ChatPage() {
                     {m.from === "agent" ? "Agent" : "User"}
                   </div>
                   <div>{m.content}</div>
-                  <div className="mt-1 text-[10px] text-slate-300">
-                    status: {m.status}
-                    {m.status === "failed" && m.errorReason
-                      ? ` • ${m.errorReason}`
-                      : ""}
+                  <div className="mt-1 text-[10px]">
+                    <span
+                      className={
+                        m.status === "failed"
+                          ? "text-red-300"
+                          : m.status === "pending"
+                          ? "text-yellow-300"
+                          : "text-slate-300"
+                      }
+                    >
+                      status: {m.status}
+                      {m.status === "failed" && m.errorReason ? ` • ${m.errorReason}` : ""}
+                    </span>
                   </div>
                 </div>
               ))
