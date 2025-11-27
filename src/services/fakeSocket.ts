@@ -39,6 +39,8 @@ class FakeSocketImpl implements FakeSocket {
   private statusListeners = new Set<StatusListener>();
   private serverListeners = new Set<ServerEventListener>();
 
+  private incomingIntervalId: number | null = null;
+
   getStatus(): ConnectionStatus {
     return this.status;
   }
@@ -48,16 +50,72 @@ class FakeSocketImpl implements FakeSocket {
 
     this.setStatus("connecting");
 
-    this.setStatus("connected");
+    setTimeout(() => {
+      this.setStatus("connected");
+
+      if (this.incomingIntervalId == null) {
+        this.incomingIntervalId = window.setInterval(() => {
+          if (this.status !== "connected") return;
+
+          const serverId = `srv-${Date.now()}-${Math.random()
+            .toString(16)
+            .slice(2)}`;
+          const createdAt = new Date().toISOString();
+
+          this.emitServerEvent({
+            type: "incoming",
+            serverId,
+            content: "Hello from user " + serverId.slice(-4),
+            createdAt,
+          });
+        }, 8000);
+      }
+    }, 500);
   }
 
   disconnect(): void {
     if (this.status === "disconnected") return;
+
     this.setStatus("disconnected");
+
+    if (this.incomingIntervalId != null) {
+      clearInterval(this.incomingIntervalId);
+      this.incomingIntervalId = null;
+    }
   }
 
-  sendMessage(_payload: { clientId: string; content: string }): void {
-    console.log("FakeSocket: sendMessage", _payload);
+  sendMessage(payload: { clientId: string; content: string }): void {
+    const { clientId } = payload;
+
+    if (this.status !== "connected") {
+      return;
+    }
+
+    const delay = 400 + Math.random() * 900;
+
+    setTimeout(() => {
+      if (this.status !== "connected") return;
+
+      const shouldFail = Math.random() < 0.2;
+
+      if (shouldFail) {
+        this.emitServerEvent({
+          type: "error",
+          clientId,
+          reason: "Random simulated error",
+        });
+      } else {
+        const serverId = `srv-${Date.now()}-${Math.random()
+          .toString(16)
+          .slice(2)}`;
+
+        this.emitServerEvent({
+          type: "ack",
+          clientId,
+          serverId,
+        });
+      }
+    }, delay);
   }
 
   subscribeToServerEvents(listener: ServerEventListener): () => void {

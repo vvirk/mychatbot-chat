@@ -23,3 +23,19 @@ export interface OutgoingAgentMessagePayload {
   content: string;
   createdAt: string;
 }
+
+export interface AckPayload {
+  clientId: string;
+  serverId: string;
+}
+
+export interface ErrorPayload {
+  clientId: string;
+  reason: string;
+}
+
+export interface IncomingMessagePayload {
+  serverId: string;
+  content: string;
+  createdAt: string;
+}

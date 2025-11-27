@@ -6,11 +6,14 @@ import {
   selectOutgoingQueue,
 } from "../chatSelectors";
 import { useChatConnection } from "../hooks/useChatConnection";
+import { useChatServerEvents } from "../hooks/useChatServerEvents";
 import { fakeSocket } from "../../../services/fakeSocket";
 import { agentMessageQueued } from "../chatSlice";
 
 export function ChatPage() {
   useChatConnection();
+  useChatServerEvents();
+
   const dispatch = useAppDispatch();
   const [draft, setDraft] = useState("");
 
@@ -19,8 +22,7 @@ export function ChatPage() {
   const outgoingQueue = useAppSelector(selectOutgoingQueue);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-900 text-white">
-
+    <div className="h-screen flex flex-col bg-slate-900 text-white">
       <header className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800">
         <div className="font-semibold">MyChatBot Agent Chat</div>
         <div className="flex items-center gap-3 text-sm">
@@ -44,9 +46,7 @@ export function ChatPage() {
         </div>
       </header>
 
-      {/* Main area */}
-      <div className="flex flex-1 gap-4 p-4">
-        {/* Messages list */}
+      <div className="flex flex-1 gap-4 p-4 overflow-hidden">
         <section className="flex-1 flex flex-col border border-slate-700 rounded-lg overflow-hidden">
           <div className="px-3 py-2 border-b border-slate-700 text-sm font-semibold bg-slate-800">
             Messages
@@ -80,16 +80,15 @@ export function ChatPage() {
           </div>
         </section>
 
-        {/* Outgoing queue debug */}
-        <aside className="w-64 border border-slate-700 rounded-lg text-xs">
+        <aside className="w-64 flex flex-col border border-slate-700 rounded-lg text-xs overflow-hidden">
           <div className="px-3 py-2 border-b border-slate-700 font-semibold bg-slate-800">
             Outgoing queue
           </div>
-          <div className="p-3 space-y-1">
+          <div className="flex-1 p-3 space-y-1 overflow-y-auto">
             {outgoingQueue.length === 0 ? (
               <div className="text-slate-400">Empty</div>
             ) : (
-              outgoingQueue.map((id) => (
+              outgoingQueue.map((id: string) => (
                 <div
                   key={id}
                   className="rounded bg-slate-800 px-2 py-1 font-mono break-all"
