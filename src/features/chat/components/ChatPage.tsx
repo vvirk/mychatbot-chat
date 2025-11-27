@@ -1,4 +1,5 @@
-import { useAppSelector } from "../../../app/hooks";
+import { useState } from "react";
+import { useAppDispatch, useAppSelector } from "../../../app/hooks";
 import {
   selectConnectionStatus,
   selectMessages,
@@ -6,9 +7,13 @@ import {
 } from "../chatSelectors";
 import { useChatConnection } from "../hooks/useChatConnection";
 import { fakeSocket } from "../../../services/fakeSocket";
+import { agentMessageQueued } from "../chatSlice";
 
 export function ChatPage() {
   useChatConnection();
+  const dispatch = useAppDispatch();
+  const [draft, setDraft] = useState("");
+
   const connectionStatus = useAppSelector(selectConnectionStatus);
   const messages = useAppSelector(selectMessages);
   const outgoingQueue = useAppSelector(selectOutgoingQueue);
@@ -97,19 +102,32 @@ export function ChatPage() {
         </aside>
       </div>
 
-      {/* Input area */}
       <footer className="border-t border-slate-700 px-4 py-3">
-        <form className="flex gap-2">
+        <form
+          className="flex gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const trimmed = draft.trim();
+            if (!trimmed) return;
+
+            const clientId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            const createdAt = new Date().toISOString();
+
+            dispatch(agentMessageQueued({ clientId, content: trimmed, createdAt }));
+            setDraft("");
+          }}
+        >
           <input
             type="text"
             className="flex-1 rounded bg-slate-800 border border-slate-700 px-3 py-2 text-sm outline-none focus:border-blue-500"
             placeholder="Type a message..."
-            disabled
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
           />
           <button
-            type="button"
+            type="submit"
             className="px-4 py-2 rounded bg-blue-600 text-sm font-semibold disabled:opacity-50"
-            disabled
+            disabled={!draft.trim()}
           >
             Send
           </button>

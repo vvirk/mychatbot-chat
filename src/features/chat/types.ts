@@ -17,3 +17,9 @@ export interface ChatState {
   messages: ChatMessage[];
   outgoingQueue: string[];
 }
+
+export interface OutgoingAgentMessagePayload {
+  clientId: string;
+  content: string;
+  createdAt: string;
+}

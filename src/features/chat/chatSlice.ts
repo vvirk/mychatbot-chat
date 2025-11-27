@@ -1,5 +1,9 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { ChatState, ConnectionStatus } from "./types";
+import type {
+  ChatState,
+  ConnectionStatus,
+  OutgoingAgentMessagePayload,
+} from "./types";
 
 const initialState: ChatState = {
   connectionStatus: "disconnected",
@@ -14,9 +18,25 @@ export const chatSlice = createSlice({
     connectionStatusChanged(state, action: PayloadAction<ConnectionStatus>) {
       state.connectionStatus = action.payload;
     },
+    agentMessageQueued(
+      state,
+      action: PayloadAction<OutgoingAgentMessagePayload>
+    ) {
+      const { clientId, content, createdAt } = action.payload;
+
+      state.messages.push({
+        clientId,
+        from: "agent",
+        content,
+        createdAt,
+        status: "pending",
+      });
+
+      state.outgoingQueue.push(clientId);
+    },
   },
 });
 
-export const { connectionStatusChanged } = chatSlice.actions;
+export const { connectionStatusChanged, agentMessageQueued } = chatSlice.actions;
 
 export const chatReducer = chatSlice.reducer;
