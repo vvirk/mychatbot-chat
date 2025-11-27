@@ -5,141 +5,58 @@ import {
   selectMessages,
   selectOutgoingQueue,
 } from "../chatSelectors";
+import { fakeSocket } from "../../../services/fakeSocket";
 import { useChatConnection } from "../hooks/useChatConnection";
 import { useChatServerEvents } from "../hooks/useChatServerEvents";
-import { fakeSocket } from "../../../services/fakeSocket";
 import { agentMessageQueued } from "../chatSlice";
+import { ChatHeader } from "./ChatHeader";
+import { MessagesPanel } from "./MessagesPanel";
+import { OutgoingQueuePanel } from "./OutgoingQueuePanel";
+import { ChatInput } from "./ChatInput";
 
 export function ChatPage() {
   useChatConnection();
   useChatServerEvents();
 
   const dispatch = useAppDispatch();
-  const [draft, setDraft] = useState("");
-
   const connectionStatus = useAppSelector(selectConnectionStatus);
   const messages = useAppSelector(selectMessages);
   const outgoingQueue = useAppSelector(selectOutgoingQueue);
 
+  const [draft, setDraft] = useState("");
+
+  const handleToggleConnection = () => {
+    if (connectionStatus === "connected") {
+      fakeSocket.disconnect();
+    } else {
+      fakeSocket.connect();
+    }
+  };
+
+  const handleSend = () => {
+    const trimmed = draft.trim();
+    if (!trimmed) return;
+
+    const clientId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const createdAt = new Date().toISOString();
+
+    dispatch(agentMessageQueued({ clientId, content: trimmed, createdAt }));
+    setDraft("");
+  };
+
   return (
     <div className="h-screen flex flex-col bg-slate-900 text-white">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800">
-        <div className="font-semibold">MyChatBot Agent Chat</div>
-        <div className="flex items-center gap-3 text-sm">
-            <span>Status: {connectionStatus}</span>
-            <button
-            type="button"
-            className="px-3 py-1 rounded bg-slate-700 text-xs disabled:opacity-50"
-            onClick={() => {
-                if (connectionStatus === "connected" || connectionStatus === "connecting") {
-                fakeSocket.disconnect();
-                } else {
-                fakeSocket.connect();
-                }
-            }}
-            disabled={connectionStatus === "connecting"}
-            >
-            {connectionStatus === "connected" || connectionStatus === "connecting"
-                ? "Disconnect"
-                : "Connect"}
-            </button>
-        </div>
-      </header>
+      <ChatHeader
+        status={connectionStatus}
+        onToggleConnection={handleToggleConnection}
+      />
 
-      <div className="flex flex-1 gap-4 p-4 overflow-hidden">
-        <section className="flex-1 flex flex-col border border-slate-700 rounded-lg overflow-hidden">
-          <div className="px-3 py-2 border-b border-slate-700 text-sm font-semibold bg-slate-800">
-            Messages
-          </div>
-          <div className="flex-1 p-3 space-y-2 overflow-y-auto text-sm">
-            {messages.length === 0 ? (
-              <div className="text-slate-400">No messages yet</div>
-            ) : (
-              messages.map((m) => (
-                <div
-                  key={m.clientId ?? m.serverId}
-                  className={`max-w-xs rounded px-3 py-2 ${
-                    m.from === "agent"
-                      ? "ml-auto bg-blue-600"
-                      : "mr-auto bg-slate-700"
-                  }`}
-                >
-                  <div className="text-xs text-slate-200 mb-1">
-                    {m.from === "agent" ? "Agent" : "User"}
-                  </div>
-                  <div>{m.content}</div>
-                  <div className="mt-1 text-[10px]">
-                    <span
-                      className={
-                        m.status === "failed"
-                          ? "text-red-300"
-                          : m.status === "pending"
-                          ? "text-yellow-300"
-                          : "text-slate-300"
-                      }
-                    >
-                      status: {m.status}
-                      {m.status === "failed" && m.errorReason ? ` • ${m.errorReason}` : ""}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+      <main className="flex flex-1 gap-4 p-4 overflow-hidden">
+        <MessagesPanel messages={messages} />
+        <OutgoingQueuePanel outgoingQueue={outgoingQueue} />
+      </main>
 
-        <aside className="w-64 flex flex-col border border-slate-700 rounded-lg text-xs overflow-hidden">
-          <div className="px-3 py-2 border-b border-slate-700 font-semibold bg-slate-800">
-            Outgoing queue
-          </div>
-          <div className="flex-1 p-3 space-y-1 overflow-y-auto">
-            {outgoingQueue.length === 0 ? (
-              <div className="text-slate-400">Empty</div>
-            ) : (
-              outgoingQueue.map((id: string) => (
-                <div
-                  key={id}
-                  className="rounded bg-slate-800 px-2 py-1 font-mono break-all"
-                >
-                  {id}
-                </div>
-              ))
-            )}
-          </div>
-        </aside>
-      </div>
-
-      <footer className="border-t border-slate-700 px-4 py-3">
-        <form
-          className="flex gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const trimmed = draft.trim();
-            if (!trimmed) return;
-
-            const clientId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-            const createdAt = new Date().toISOString();
-
-            dispatch(agentMessageQueued({ clientId, content: trimmed, createdAt }));
-            setDraft("");
-          }}
-        >
-          <input
-            type="text"
-            className="flex-1 rounded bg-slate-800 border border-slate-700 px-3 py-2 text-sm outline-none focus:border-blue-500"
-            placeholder="Type a message..."
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-          />
-          <button
-            type="submit"
-            className="px-4 py-2 rounded bg-blue-600 text-sm font-semibold disabled:opacity-50"
-            disabled={!draft.trim()}
-          >
-            Send
-          </button>
-        </form>
-      </footer>
+      <ChatInput value={draft} onChange={setDraft} onSubmit={handleSend} />
     </div>
   );
 }
