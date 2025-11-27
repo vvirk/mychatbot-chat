@@ -40,6 +40,9 @@ class FakeSocketImpl implements FakeSocket {
   private serverListeners = new Set<ServerEventListener>();
 
   private incomingIntervalId: number | null = null;
+  private randomDisconnectIntervalId: number | null = null;
+
+  private isAutoReconnectScheduled = false;
 
   getStatus(): ConnectionStatus {
     return this.status;
@@ -53,23 +56,8 @@ class FakeSocketImpl implements FakeSocket {
     setTimeout(() => {
       this.setStatus("connected");
 
-      if (this.incomingIntervalId == null) {
-        this.incomingIntervalId = window.setInterval(() => {
-          if (this.status !== "connected") return;
-
-          const serverId = `srv-${Date.now()}-${Math.random()
-            .toString(16)
-            .slice(2)}`;
-          const createdAt = new Date().toISOString();
-
-          this.emitServerEvent({
-            type: "incoming",
-            serverId,
-            content: "Hello from user " + serverId.slice(-4),
-            createdAt,
-          });
-        }, 8000);
-      }
+      this.startIncomingInterval();
+      this.startRandomDisconnectInterval();
     }, 500);
   }
 
@@ -78,18 +66,22 @@ class FakeSocketImpl implements FakeSocket {
 
     this.setStatus("disconnected");
 
-    if (this.incomingIntervalId != null) {
-      clearInterval(this.incomingIntervalId);
-      this.incomingIntervalId = null;
-    }
+    this.stopIncomingInterval();
+    this.stopRandomDisconnectInterval();
+
+    if (!this.isAutoReconnectScheduled) return;
+
+    this.isAutoReconnectScheduled = false;
+
+    setTimeout(() => {
+      this.connect();
+    }, 1200 + Math.random() * 1500);
   }
 
   sendMessage(payload: { clientId: string; content: string }): void {
     const { clientId } = payload;
 
-    if (this.status !== "connected") {
-      return;
-    }
+    if (this.status !== "connected") return;
 
     const delay = 400 + Math.random() * 900;
 
@@ -141,6 +133,54 @@ class FakeSocketImpl implements FakeSocket {
 
   private emitServerEvent(event: ServerMessageEvent) {
     this.serverListeners.forEach((listener) => listener(event));
+  }
+
+  private startIncomingInterval() {
+    if (this.incomingIntervalId != null) return;
+
+    this.incomingIntervalId = window.setInterval(() => {
+      if (this.status !== "connected") return;
+
+      const serverId = `srv-${Date.now()}-${Math.random()
+        .toString(16)
+        .slice(2)}`;
+      const createdAt = new Date().toISOString();
+
+      this.emitServerEvent({
+        type: "incoming",
+        serverId,
+        content: "Hello from user " + serverId.slice(-4),
+        createdAt,
+      });
+    }, 8000);
+  }
+
+  private stopIncomingInterval() {
+    if (this.incomingIntervalId != null) {
+      clearInterval(this.incomingIntervalId);
+      this.incomingIntervalId = null;
+    }
+  }
+
+  private startRandomDisconnectInterval() {
+    if (this.randomDisconnectIntervalId != null) return;
+
+    this.randomDisconnectIntervalId = window.setInterval(() => {
+      if (this.status !== "connected") return;
+
+      const shouldDisconnect = Math.random() < 0.15;
+      if (!shouldDisconnect) return;
+
+      this.isAutoReconnectScheduled = true;
+      this.disconnect();
+    }, 6000);
+  }
+
+  private stopRandomDisconnectInterval() {
+    if (this.randomDisconnectIntervalId != null) {
+      clearInterval(this.randomDisconnectIntervalId);
+      this.randomDisconnectIntervalId = null;
+    }
   }
 }
 
